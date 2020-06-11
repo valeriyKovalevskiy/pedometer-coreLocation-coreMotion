@@ -8,9 +8,25 @@
 
 import UIKit
 import CoreLocation
+import CoreMotion
+import Dispatch
+
 
 @objc public class LocationForUnity: NSObject, CLLocationManagerDelegate {
 
+
+
+
+    private let activityManager: CMMotionActivityManager
+    private let pedometer: CMPedometer
+    private var startDate: Date?
+    private var stepsCount: String
+    var collectedSteps: [String] = [] {
+        didSet {
+            stepsCount = "0"
+        }
+    }
+    
     @objc public static let sharedInstance = LocationForUnity()
     static var BACKGROUND_TIMER = 30 // restart location manager every 30 seconds
 
@@ -21,6 +37,12 @@ import CoreLocation
     var isEnabled = false
 
     private override init(){
+        
+        activityManager = CMMotionActivityManager()
+        pedometer = CMPedometer()
+        startDate = nil
+        stepsCount = "0"
+        
         locationManager = CLLocationManager()
         super.init()
         locationManager.delegate = self
@@ -36,10 +58,12 @@ import CoreLocation
 
     @objc func applicationEnterBackground() {
         locationManager.startUpdatingLocation()
+        onStart()
     }
 
     @objc public func startPlugin() {
         locationManager.startUpdatingLocation()
+        onStart()
         isEnabled = true
         print("success")
 
@@ -47,6 +71,7 @@ import CoreLocation
     
     @objc public func stopPlugin() {
         locationManager.stopUpdatingLocation()
+        onStop()
         isEnabled = false
         timer?.invalidate()
         timer = nil
@@ -64,6 +89,7 @@ import CoreLocation
         timer?.invalidate()
         timer = nil
         locationManager.startUpdatingLocation()
+        onStart()
     }
 
     private func locationManager(manager: CLLocationManager, didChangeAuthorizationStatus status: CLAuthorizationStatus) {
@@ -95,6 +121,10 @@ import CoreLocation
             let time = location.timestamp
             if isEnabled {
                 self.collectedLocations.append("\(lat),\(lon),\(time)")
+                self.collectedSteps.append(stepsCount)
+                
+                print("\(collectedSteps)")
+                print("\(collectedLocations)")
             }
             
             switch CLLocationManager.authorizationStatus() {
@@ -106,6 +136,10 @@ import CoreLocation
             
             if self.collectedLocations.count > 25 {
                 self.collectedLocations.removeFirst()
+            }
+            
+            if self.collectedSteps.count > 25 {
+                self.collectedSteps.removeFirst()
             }
         }
     }
@@ -141,3 +175,85 @@ import CoreLocation
         }
     }
 }
+
+extension LocationForUnity {
+    private func onStart() {
+        startDate = Date()
+        
+        checkAuthorizationStatus()
+        startUpdating()
+    }
+    
+    private func onStop() {
+        startDate = nil
+        
+        activityManager.stopActivityUpdates()
+        pedometer.stopUpdates()
+        pedometer.stopEventUpdates()
+    }
+    
+    private func startUpdating() {
+        if CMMotionActivityManager.isActivityAvailable() {
+            startTrackingActivityType()
+        }
+        
+        if CMPedometer.isStepCountingAvailable() {
+            startCountingSteps()
+        }
+    }
+    
+    private func checkAuthorizationStatus() {
+        switch CMMotionActivityManager.authorizationStatus() {
+        case CMAuthorizationStatus.denied:
+            onStop()
+            
+        default:break
+        }
+    }
+    
+    private func on(error: Error) {
+        //handle error
+    }
+    
+    private func updateStepsCountLabelUsing(startDate: Date) {
+        pedometer.queryPedometerData(from: startDate, to: Date()) { [weak self] pedometerData, error in
+            if let error = error {
+                self?.on(error: error)
+            } else if let pedometerData = pedometerData {
+                
+                DispatchQueue.main.async {
+                    self?.stepsCount = String(describing: pedometerData.numberOfSteps)
+                }
+            }
+        }
+    }
+    
+    private func startTrackingActivityType() {
+        activityManager.startActivityUpdates(to: OperationQueue.main) { (activity: CMMotionActivity?) in
+            guard let activity = activity else { return }
+            
+            DispatchQueue.main.async {
+                if activity.walking {
+                    print("Walking")
+                } else if activity.stationary {
+                    print("Stationary")
+                } else if activity.running {
+                    print("Running")
+                } else if activity.automotive {
+                    print("Automotive")
+                }
+            }
+        }
+    }
+    
+    private func startCountingSteps() {
+        pedometer.startUpdates(from: Date()) { [weak self] pedometerData, error in
+            guard let pedometerData = pedometerData, error == nil else { return }
+            
+            DispatchQueue.main.async {
+                self?.stepsCount = pedometerData.numberOfSteps.stringValue
+            }
+        }
+    }
+}
+
