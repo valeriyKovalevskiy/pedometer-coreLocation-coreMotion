@@ -13,6 +13,7 @@
 		264A2EE8249229B3000057A2 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 264A2EE6249229B3000057A2 /* Main.storyboard */; };
 		264A2EEA249229B5000057A2 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 264A2EE9249229B5000057A2 /* Assets.xcassets */; };
 		264A2EED249229B5000057A2 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 264A2EEB249229B5000057A2 /* LaunchScreen.storyboard */; };
+		264A2EF524922A00000057A2 /* Location.swift in Sources */ = {isa = PBXBuildFile; fileRef = 264A2EF424922A00000057A2 /* Location.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -24,6 +25,7 @@
 		264A2EE9249229B5000057A2 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		264A2EEC249229B5000057A2 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		264A2EEE249229B5000057A2 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		264A2EF424922A00000057A2 /* Location.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Location.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -63,6 +65,7 @@
 				264A2EE9249229B5000057A2 /* Assets.xcassets */,
 				264A2EEB249229B5000057A2 /* LaunchScreen.storyboard */,
 				264A2EEE249229B5000057A2 /* Info.plist */,
+				264A2EF424922A00000057A2 /* Location.swift */,
 			);
 			path = test;
 			sourceTree = "<group>";
@@ -140,6 +143,7 @@
 			files = (
 				264A2EE5249229B3000057A2 /* ViewController.swift in Sources */,
 				264A2EE1249229B3000057A2 /* AppDelegate.swift in Sources */,
+				264A2EF524922A00000057A2 /* Location.swift in Sources */,
 				264A2EE3249229B3000057A2 /* SceneDelegate.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -285,7 +289,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = 3599HR3Q7R;
+				DEVELOPMENT_TEAM = S9F65SSE33;
 				INFOPLIST_FILE = test/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -302,8 +306,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = 3599HR3Q7R;
+				CODE_SIGN_STYLE = Manual;
+				DEVELOPMENT_TEAM = "";
 				INFOPLIST_FILE = test/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -311,6 +315,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = v.kovalevskiy.test;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
