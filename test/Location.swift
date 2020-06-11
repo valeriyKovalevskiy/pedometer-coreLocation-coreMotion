@@ -9,33 +9,30 @@
 import UIKit
 import CoreLocation
 import CoreMotion
-import Dispatch
-
 
 @objc public class LocationForUnity: NSObject, CLLocationManagerDelegate {
 
-
-
-
+    @objc public static let sharedInstance = LocationForUnity()
+    static var BACKGROUND_TIMER = 30 // restart location manager every 30 seconds
+    var timer: Timer?
+    var currentBgTaskId: UIBackgroundTaskIdentifier?
+    
+    //MARK: - Motion properties
     private let activityManager: CMMotionActivityManager
     private let pedometer: CMPedometer
     private var startDate: Date?
     private var stepsCount: String
-    var collectedSteps: [String] = [] {
+    private var collectedSteps: [String] = [] {
         didSet {
             stepsCount = "0"
         }
     }
-    
-    @objc public static let sharedInstance = LocationForUnity()
-    static var BACKGROUND_TIMER = 30 // restart location manager every 30 seconds
-
+    //MARK: - Location properties
     let locationManager: CLLocationManager
-    var timer: Timer?
-    var currentBgTaskId: UIBackgroundTaskIdentifier?
-    var collectedLocations: [String] = []
     var isEnabled = false
-
+    var collectedLocations: [String] = []
+    
+    //MARK: - Init
     private override init(){
         
         activityManager = CMMotionActivityManager()
@@ -55,24 +52,17 @@ import Dispatch
 
         NotificationCenter.default.addObserver(self, selector: #selector(self.applicationEnterBackground), name: UIApplication.didEnterBackgroundNotification, object: nil)
     }
-
-    @objc func applicationEnterBackground() {
-        locationManager.startUpdatingLocation()
-        onStart()
-    }
-
+    
+    //MARK: - Public methods
     @objc public func startPlugin() {
-        locationManager.startUpdatingLocation()
-        onStart()
+        startUpdateLocationAndSteps()
         isEnabled = true
-        print("success")
-
     }
     
     @objc public func stopPlugin() {
-        locationManager.stopUpdatingLocation()
-        onStop()
+        stopUpdateLocationAndSteps()
         isEnabled = false
+        
         timer?.invalidate()
         timer = nil
         
@@ -81,25 +71,74 @@ import Dispatch
         }
     }
     
+    @objc public func isPluginEnabled() -> Bool {
+        isEnabled
+    }
+    
+    @objc public func getLocation() -> String {
+        collectedLocations.count > 0 ? collectedLocations.removeFirst() : "false"
+    }
+    
+    @objc public func getSteps() -> String {
+        collectedSteps.count > 0 ? collectedSteps.removeFirst() : "false"
+    }
+    
     @objc public func updateLocationInterval(seconds: Int) {
         LocationForUnity.BACKGROUND_TIMER = seconds
     }
-
-    @objc func restart() {
+    
+    //MARK: - Private methods
+    @objc private func applicationEnterBackground() {
+        startUpdateLocationAndSteps()
+    }
+    
+    @objc private func restart() {
         timer?.invalidate()
         timer = nil
-        locationManager.startUpdatingLocation()
-        onStart()
+        
+        startUpdateLocationAndSteps()
     }
+    
+    private func beginNewBackgroundTask(){
+        var previousTaskId = currentBgTaskId
+        currentBgTaskId = UIApplication.shared.beginBackgroundTask(expirationHandler: {
+            //            FileLogger.log("task expired: ")
+        })
+        
+        if let taskId = previousTaskId {
+            UIApplication.shared.endBackgroundTask(taskId)
+            previousTaskId = UIBackgroundTaskIdentifier.invalid
+        }
+        timer = Timer.scheduledTimer(timeInterval: TimeInterval(LocationForUnity.BACKGROUND_TIMER), target: self, selector: #selector(self.restart),userInfo: nil, repeats: false)
+    }
+    
+    private func stopUpdateLocationAndSteps() {
+        locationManager.stopUpdatingLocation()
+        stopUpdatingSteps()
+    }
+    
+    private func startUpdateLocationAndSteps() {
+        locationManager.startUpdatingLocation()
+        startUpdatingSteps()
+    }
+    
+}
 
+//MARK: - Location methods
+extension LocationForUnity {
+    private func locationManager(manager: CLLocationManager, didFailWithError error: NSError) {
+        beginNewBackgroundTask()
+        stopUpdateLocationAndSteps()
+    }
+    
     private func locationManager(manager: CLLocationManager, didChangeAuthorizationStatus status: CLAuthorizationStatus) {
         switch status {
         case CLAuthorizationStatus.restricted: break
-            //log("Restricted Access to location")
+        //log("Restricted Access to location")
         case CLAuthorizationStatus.denied: break
-            //log("User denied access to location")
+        //log("User denied access to location")
         case CLAuthorizationStatus.notDetermined: break
-            //log("Status not determined")
+        //log("Status not determined")
         default:
             //log("startUpdatintLocation")
             if #available(iOS 9, *){
@@ -113,9 +152,10 @@ import Dispatch
     public func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         if timer == nil {
             guard let location = locations.last else {return}
-
+            
             beginNewBackgroundTask()
-            locationManager.stopUpdatingLocation()
+            stopUpdateLocationAndSteps()
+            
             let lat = location.coordinate.latitude
             let lon = location.coordinate.longitude
             let time = location.timestamp
@@ -144,47 +184,19 @@ import Dispatch
         }
     }
 
-    private func locationManager(manager: CLLocationManager, didFailWithError error: NSError) {
-        beginNewBackgroundTask()
-        locationManager.stopUpdatingLocation()
-    }
     
-    func beginNewBackgroundTask(){
-        var previousTaskId = currentBgTaskId
-        currentBgTaskId = UIApplication.shared.beginBackgroundTask(expirationHandler: {
-//            FileLogger.log("task expired: ")
-        })
-        
-        if let taskId = previousTaskId {
-            UIApplication.shared.endBackgroundTask(taskId)
-            previousTaskId = UIBackgroundTaskIdentifier.invalid
-        }
-
-        timer = Timer.scheduledTimer(timeInterval: TimeInterval(LocationForUnity.BACKGROUND_TIMER), target: self, selector: #selector(self.restart),userInfo: nil, repeats: false)
-    }
-    
-    @objc public func isPluginEnabled() -> Bool {
-        return isEnabled
-    }
-    
-    @objc public func getLocation() -> String {
-        if collectedLocations.count > 0 {
-            return self.collectedLocations.removeFirst()
-        } else {
-            return "false"
-        }
-    }
 }
 
+//MARK: - Motion methods
 extension LocationForUnity {
-    private func onStart() {
+    private func startUpdatingSteps() {
         startDate = Date()
         
         checkAuthorizationStatus()
-        startUpdating()
+        checkAvailability()
     }
     
-    private func onStop() {
+    private func stopUpdatingSteps() {
         startDate = nil
         
         activityManager.stopActivityUpdates()
@@ -192,7 +204,7 @@ extension LocationForUnity {
         pedometer.stopEventUpdates()
     }
     
-    private func startUpdating() {
+    private func checkAvailability() {
         if CMMotionActivityManager.isActivityAvailable() {
             startTrackingActivityType()
         }
@@ -204,27 +216,11 @@ extension LocationForUnity {
     
     private func checkAuthorizationStatus() {
         switch CMMotionActivityManager.authorizationStatus() {
-        case CMAuthorizationStatus.denied:
-            onStop()
             
-        default:break
-        }
-    }
-    
-    private func on(error: Error) {
-        //handle error
-    }
-    
-    private func updateStepsCountLabelUsing(startDate: Date) {
-        pedometer.queryPedometerData(from: startDate, to: Date()) { [weak self] pedometerData, error in
-            if let error = error {
-                self?.on(error: error)
-            } else if let pedometerData = pedometerData {
-                
-                DispatchQueue.main.async {
-                    self?.stepsCount = String(describing: pedometerData.numberOfSteps)
-                }
-            }
+        case CMAuthorizationStatus.denied:
+            stopUpdatingSteps()
+        default:
+            break
         }
     }
     
@@ -248,12 +244,17 @@ extension LocationForUnity {
     
     private func startCountingSteps() {
         pedometer.startUpdates(from: Date()) { [weak self] pedometerData, error in
-            guard let pedometerData = pedometerData, error == nil else { return }
+            guard let pedometerData = pedometerData else { return }
             
+            if let error = error {
+                print(error.localizedDescription)
+            }
             DispatchQueue.main.async {
                 self?.stepsCount = pedometerData.numberOfSteps.stringValue
             }
         }
     }
+    
+    
 }
 
